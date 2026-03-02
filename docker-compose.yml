@@ -1,0 +1,53 @@
+services:
+  pg-primary:
+    image: postgres:16
+    container_name: pg-primary
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - pg_primary_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  pg-secondary:
+    image: postgres:16
+    container_name: pg-secondary
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - pg_secondary_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: .
+    container_name: failover-api
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+      pg-secondary:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+      - DB_PRIMARY_HOST=pg-primary
+      - DB_PRIMARY_PORT=5432
+      - DB_SECONDARY_HOST=pg-secondary
+      - DB_SECONDARY_PORT=5432
+
+volumes:
+  pg_primary_data:
+  pg_secondary_data:
